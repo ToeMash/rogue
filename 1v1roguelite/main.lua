@@ -22,9 +22,34 @@ height = 1000
 wall_width = 20
 stick_width = 10
 
-speed = 10
-dash_len = 100
+speed = 1000
+dash_len = 10
 player_weapon = 'stick'
+
+entities = {}
+
+function createEntity(name, x, y)
+    entities[name] = {  ['pos'] = {['x'] = x or 500, ['y'] = y or 500},
+                        ['vector'] = newVector(0, 0)
+    }
+end
+
+function normalize(x, y)
+    local len = math.sqrt(x^2 + y^2)
+    return {['x'] = x / len, ['y'] = y / len}
+
+function newVector(x, y, scalar)
+    local normalized = normalize(x, y)
+    return {['x'] = normalized['x'], ['y'] = normalized['y'], ['scalar'] = scalar}
+end
+
+function addVector(vector1, vector2)
+    return newVector(vector1['x'] + vector2['x'], vector1['y'] + vector2['y'])
+end
+
+function multVector(vector, scalar)
+    return newVector(vector['x'] * scalar, vector['y'] * scalar)
+end 
 
 keybinds = {
     ['up'] = 'w',
@@ -73,6 +98,7 @@ player_action_icons = {
 function love.load()
     success = love.window.setMode( width + icon_space_width, height )
     font = love.graphics.newFont(45)
+    createEntity('player', 500, 800)
 end
 
 function drawIcons()
@@ -97,12 +123,12 @@ function love.draw()
 
     love.graphics.draw(opponent, o_pos['x'], o_pos['y'], 0, 1, 1, opponent_size/2, opponent_size/2, 0, 0)
 
-    love.graphics.draw(player, p_pos['x'], p_pos['y'], 0, 1, 1, player_size/2, player_size/2, 0, 0)
+    love.graphics.draw(player, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, player_size/2, player_size/2, 0, 0)
 
     if attack ~= nil then
-        love.graphics.draw(attack, p_pos['x'], p_pos['y'], calcRadians(), 1, 1, -stick_width/2, stick_width/2, 0, 0)
+        --love.graphics.draw(attack, entities['player']['pos']['x'], entities['player']['pos']['y'], calcRadians(), 1, 1, -stick_width/2, stick_width/2, 0, 0)
     else
-        love.graphics.draw(stick, p_pos['x'], p_pos['y'], 0, 1, 1, -player_size/2, player_size/2, 0, 0)
+        love.graphics.draw(stick, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, -player_size/2, player_size/2, 0, 0)
     end
 end
 
@@ -117,39 +143,39 @@ function hasVal(val, arr)
     return false
 end
 
-function doAction(actions)
-    local dash = 0
-    if hasVal('dash', actions) and timers['dash'] <= 0 then
-        dash = dash_len / (#actions - 1)
-        timers['dash'] = cooldowns['dash']
+function calcRadians(src_x, src_y, dst_x, dst_y)
+    local theta = math.atan((dst_y - src_y) / (dst_x - src_x))
+    if dst_x < src_x then
+        theta = theta + math.pi
     end
+    return theta
+end
+
+function doAction(entity, actions)
+
+    local vectors_to_add = {}
     for _, key in ipairs(actions) do
         if key == 'up' then
-            if p_pos['y'] - speed - dash - player_size/2 < 0 + wall_width then
-                p_pos['y'] = 0 + wall_width + player_size/2
-            else
-                p_pos['y'] = p_pos['y'] - speed - dash
-            end
+            table.insert(vectors_to_add, newVector(0, -speed))
         elseif key == 'down' then
-            if p_pos['y'] + speed + dash + player_size/2 > width - wall_width then
-                p_pos['y'] = width - wall_width - player_size/2
-            else
-                p_pos['y'] = p_pos['y'] + speed + dash
-            end
+            table.insert(vectors_to_add, newVector(0, speed))
         elseif key == 'left' then
-            if p_pos['x'] - speed - dash - player_size/2 < 0 + wall_width then
-                p_pos['x'] = 0 + wall_width + player_size/2
-            else
-                p_pos['x'] = p_pos['x'] - speed - dash
-            end
+            table.insert(vectors_to_add, newVector(-speed, 0))
         elseif key == 'right' then
-            if p_pos['x'] + speed + dash + player_size/2 > width - wall_width then
-                p_pos['x'] = width - wall_width - player_size/2
-            else
-                p_pos['x'] = p_pos['x'] + speed + dash
-            end
+            table.insert(vectors_to_add, newVector(speed, 0))
         end
     end
+    local vector_out = newVector(0, 0)
+    for _, v in ipairs(vectors_to_add) do
+        vector_out = addVector(vector_out, multVector(v, 1/#vectors_to_add))
+    end
+
+    if hasVal('dash', actions) and timers['dash'] <= 0 then
+        vector_out = multVector(vector_out, dash_len)
+        timers['dash'] = cooldowns['dash']
+    end
+
+    entities[entity]['vector'] = vector_out
 end
 
 function love.conf(t)
@@ -164,20 +190,15 @@ function checkInputs()
         end
     end
     if #actions > 0 then
-        doAction(actions)
+        doAction('player', actions)
+    else
+        entities['player']['vector']['x'] = 0
+        entities['player']['vector']['y'] = 0
     end
 end
 
 function updateMouse()
     m_pos['x'], m_pos['y'] = love.mouse.getPosition()
-end
-
-function calcRadians()
-    local theta = math.atan((m_pos['y'] - p_pos['y']) / (m_pos['x'] - p_pos['x']))
-    if m_pos['x'] < p_pos['x'] then
-        theta = theta + math.pi
-    end
-    return theta
 end
 
 function stickAttack()
@@ -200,6 +221,13 @@ function love.mousepressed(x, y, button)
     mouseCombat(button)
 end
 
+function updateVectorPosisitions(dt)
+    for entity, value in pairs(entities) do
+        entities[entity]['pos']['x'] = entities[entity]['pos']['x'] + entities[entity]['vector']['x'] * dt
+        entities[entity]['pos']['y'] = entities[entity]['pos']['y'] + entities[entity]['vector']['y'] * dt
+    end
+end
+
 function love.update(dt)
     updateMouse()
     for k, v in pairs(timers) do
@@ -210,6 +238,7 @@ function love.update(dt)
     end
 
     checkInputs()
+    updateVectorPosisitions(dt)
 
 
 end
