@@ -1,3 +1,5 @@
+local menu = require"menu"
+
 arena = love.graphics.newImage("assets/arena.png")
 player = love.graphics.newImage("assets/player.png")
 opponent = love.graphics.newImage("assets/opponent.png")
@@ -17,6 +19,8 @@ icons = {
     ['stick'] = stick_icon,
     ['stick_attack2']  = stick_attack2_icon
 }
+
+window_state = "menu"
 
 images = {}
 
@@ -151,16 +155,20 @@ function drawEntities()
 end
 
 function love.draw()
-    love.graphics.draw(arena, 0, 0)
-    drawIcons()
-    drawHP()
-    drawEntities()
-    
+    if window_state == "menu" then
+        doMenu()
+    elseif window_state == "game" then
+        love.graphics.draw(arena, 0, 0)
+        drawIcons()
+        drawHP()
+        drawEntities()
+        
 
-    if attack ~= nil then
-        --love.graphics.draw(attack, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, entities['player']['radius'], entities['player']['radius'], 0, 0)
-    else
-        love.graphics.draw(stick, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, -entities['player']['radius'], entities['player']['radius'], 0, 0)
+        if attack ~= nil then
+            --love.graphics.draw(attack, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, entities['player']['radius'], entities['player']['radius'], 0, 0)
+        else
+            love.graphics.draw(stick, entities['player']['pos']['x'], entities['player']['pos']['y'], 0, 1, 1, -entities['player']['radius'], entities['player']['radius'], 0, 0)
+        end
     end
 end
 
@@ -279,7 +287,11 @@ function mouseCombat(button)
 end
 
 function love.mousepressed(x, y, button)
-    mouseCombat(button)
+    if window_state == "menu" then
+        window_state = menuClick(m_pos)
+    elseif window_state == "game" then
+        mouseCombat(button)
+    end
 end
 
 function updateVectorPosisitions(dt)
