@@ -6,7 +6,7 @@ exit_button = love.graphics.newImage("assets/exit_button.png")
 
 menu_buttons = {
     [1] = {name = "title", image = title, x = 0, y = 0, BUTTON_WIDTH = 1000, BUTTON_HEIGHT = 200},
-    [2] = {name = "game", image = arena_button, x = 250, y = 210, BUTTON_WIDTH = 500, BUTTON_HEIGHT = 200},
+    [2] = {name = "networking", image = arena_button, x = 250, y = 210, BUTTON_WIDTH = 500, BUTTON_HEIGHT = 200},
     [3] = {name = "options", image = options_button, x = 250, y = 420, BUTTON_WIDTH = 500, BUTTON_HEIGHT = 200},
     [4] = {name = "exit", image = exit_button, x = 250, y = 630, BUTTON_WIDTH = 500, BUTTON_HEIGHT = 200},
 }

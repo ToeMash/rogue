@@ -1,4 +1,5 @@
 local menu = require"menu"
+local network = require"networking"
 
 arena = love.graphics.newImage("assets/arena.png")
 player = love.graphics.newImage("assets/player.png")
@@ -30,11 +31,12 @@ height = 1000
 wall_width = 20
 stick_width = 10
 
-speed = 1000
+speed = 300
 dash_len = 10
 player_weapon = 'stick'
 
 entities = {}
+
 
 function setSpeed(entity, speed)
     entities[entity]['speed'] = speed
@@ -114,10 +116,15 @@ player_action_icons = {
 }
 
 function love.load()
-    success = love.window.setMode( width + icon_space_width, height )
+    if window_state == "networking" then
+        loadNetwork()
+    else
+        success = love.window.setMode( width + icon_space_width, height )
+    love.graphics.setBackgroundColor(.2, .2, .2)
     font = love.graphics.newFont(45)
     createEntity('player', 500, 800, 15, speed, player)
     createEntity('opponent', 500, 200, 15, 0, opponent)
+    end
 end
 
 function drawHP()
@@ -157,6 +164,8 @@ end
 function love.draw()
     if window_state == "menu" then
         doMenu()
+    elseif window_state == "networking" then
+        drawNetworking()
     elseif window_state == "game" then
         love.graphics.draw(arena, 0, 0)
         drawIcons()
@@ -402,20 +411,24 @@ function updateDurations(dt)
 end
 
 function love.update(dt)
-    updateMouse()
-    for k, v in pairs(timers) do
-        timers[k] = v - dt
-    end
-    if timers['basicattack'] <= cooldowns['basicattack'] / 4 then
-        attack = nil
-    end
-    if timers['secondaryattack'] <= cooldowns['secondaryattack'] / 4 then
-        attack = nil
-    end
+    if window_state == "networking" then
+        updateNetwork(dt)
+    else
+        updateMouse()
+        for k, v in pairs(timers) do
+            timers[k] = v - dt
+        end
+        if timers['basicattack'] <= cooldowns['basicattack'] / 4 then
+            attack = nil
+        end
+        if timers['secondaryattack'] <= cooldowns['secondaryattack'] / 4 then
+            attack = nil
+        end
 
-    checkInputs()
-    updateDurations(dt)
-    updateVectorPosisitions(dt)
+        checkInputs()
+        updateDurations(dt)
+        updateVectorPosisitions(dt)
+    end
 
 
 end
