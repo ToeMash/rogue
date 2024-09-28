@@ -1,5 +1,6 @@
 local menu = require"menu"
 local network = require"networking"
+local keyboard = require"keyboard"
 
 arena = love.graphics.newImage("assets/arena.png")
 player = love.graphics.newImage("assets/player.png")
@@ -20,6 +21,20 @@ icons = {
     ['stick'] = stick_icon,
     ['stick_attack2']  = stick_attack2_icon
 }
+
+key_buffer = {}
+
+function loadFunctions()
+    if window_state == 'setnet' then
+        loadKeyboard()
+    elseif window_state == 'networking' then
+        loadNetwork()
+    elseif window_state == 'game' then
+        laodGame()
+    elseif window_state == 'menu' then
+        loadMenu()
+    end
+end
 
 window_state = "menu"
 
@@ -95,12 +110,14 @@ cooldowns = {
     ['dash'] = 2,
     ['basicattack'] = 1,
     ['secondaryattack'] = 2,
+    ['input'] = .1,
 }
 
 timers = {
     ['dash'] = 0,
     ['basicattack'] = 0,
     ['secondaryattack'] = 0,
+    ['input'] = 0,
 }
 
 weapons = {
@@ -116,15 +133,15 @@ player_action_icons = {
 }
 
 function love.load()
-    if window_state == "networking" then
-        loadNetwork()
-    else
-        success = love.window.setMode( width + icon_space_width, height )
+    success = love.window.setFullscreen(true)
+end
+
+function loadGame()
+    --
     love.graphics.setBackgroundColor(.2, .2, .2)
     font = love.graphics.newFont(45)
     createEntity('player', 500, 800, 15, speed, player)
     createEntity('opponent', 500, 200, 15, 0, opponent)
-    end
 end
 
 function drawHP()
@@ -164,6 +181,8 @@ end
 function love.draw()
     if window_state == "menu" then
         doMenu()
+    elseif window_state == "setnet" then
+        drawKeyboard()
     elseif window_state == "networking" then
         drawNetworking()
     elseif window_state == "game" then
@@ -295,9 +314,18 @@ function mouseCombat(button)
     
 end
 
+function checkMenuClick()
+    local new_state = menuClick(m_pos)
+    if new_state ~= window_state then
+        window_state = new_state
+        loadFunctions()
+    end
+end
+
+
 function love.mousepressed(x, y, button)
     if window_state == "menu" then
-        window_state = menuClick(m_pos)
+        checkMenuClick()
     elseif window_state == "game" then
         mouseCombat(button)
     end
@@ -410,20 +438,32 @@ function updateDurations(dt)
     end
 end
 
+function updateTimers(dt)
+    for k, v in pairs(timers) do
+        timers[k] = v - dt
+        if timers[k] <= cooldowns[k] / 4 then
+            attack = nil
+        end
+    end
+end
+
+function love.keypressed( key )
+    key_buffer = key
+end
+
 function love.update(dt)
-    if window_state == "networking" then
+    updateMouse()
+    updateTimers(dt)
+    if window_state == "setnet" then
+        updateKeyboard(dt)
+        if timers['input'] <= 0 then
+            checkKeyboardInput(key_buffer)
+            timers['input'] = cooldowns['input']
+            key_buffer = nil
+        end
+    elseif window_state == "networking" then
         updateNetwork(dt)
-    else
-        updateMouse()
-        for k, v in pairs(timers) do
-            timers[k] = v - dt
-        end
-        if timers['basicattack'] <= cooldowns['basicattack'] / 4 then
-            attack = nil
-        end
-        if timers['secondaryattack'] <= cooldowns['secondaryattack'] / 4 then
-            attack = nil
-        end
+    elseif window_state == "game" then
 
         checkInputs()
         updateDurations(dt)
